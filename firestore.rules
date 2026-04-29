@@ -23,7 +23,7 @@ service cloud.firestore {
     function isValidUser(data) {
       return data.email is string && data.email.size() > 0 &&
              data.role in ['user', 'admin'] &&
-             (data.keys().hasOnly(['email', 'role', 'accessExpiresAt', 'createdAt']));
+             data.keys().hasAll(['email', 'role', 'createdAt']);
     }
 
     function isValidAccessRequest(data) {
