@@ -132,9 +132,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, message }
                         if (e.code === 'auth/popup-closed-by-user') {
                           setError("Login popup was closed before completion.");
                         } else if (e.code === 'auth/unauthorized-domain') {
-                          setError("DOMAIN UNAUTHORIZED: Please add 'zplpro.vercel.app' to Authorized Domains in your Firebase Console (Authentication > Settings).");
+                          setError(
+                            "DOMAIN UNAUTHORIZED: \n1. Go to Firebase Console (Project: gen-lang-client-0390436229)\n" +
+                            "2. Authentication > Settings > Authorized Domains\n" +
+                            "3. Add 'zplpro.vercel.app'\n" +
+                            "4. Add 'zpl-ultimate-94xw.vercel.app'\n" +
+                            "5. Wait 2-3 minutes and refresh page."
+                          );
                         } else if (e.code === 'auth/operation-not-allowed') {
-                          setError("AUTH DISABLED: Please enable Google and Email/Password sign-in in your Firebase Console (Authentication > Providers).");
+                          setError("AUTH DISABLED: Enable 'Google' and 'Email/Password' in Firebase Console > Authentication > Sign-in method.");
+                        } else if (e.code === 'auth/network-request-failed') {
+                          setError("NETWORK ERROR: Please check your internet connection or disable ad-blockers that might be blocking the login popup.");
                         } else {
                           setError(e.message || "An error occurred during login.");
                         }
