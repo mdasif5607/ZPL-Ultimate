@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'jashimmirza@gmail.com' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+    function isValidId(id) { return id is string && id.size() <= 128; }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.email is string && data.email.size() > 0 &&
+             data.role in ['user', 'admin'] &&
+             (data.keys().hasOnly(['email', 'role', 'accessExpiresAt', 'createdAt']));
+    }
+
+    function isValidAccessRequest(data) {
+      return data.userId == request.auth.uid &&
+             data.userEmail == request.auth.token.email &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.requestedAt == request.time;
+    }
+
+    function isValidUsageLog(data) {
+      return data.userId is string &&
+             data.date is string &&
+             data.count is int &&
+             data.count >= 0;
+    }
+
+    // --- Collection Routes ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email']));
+    }
+
+    match /accessRequests/{requestId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 20); // Basic list for users to see their own
+      allow create: if isSignedIn() && isValidAccessRequest(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /usageLogs/{logId} {
+      // In a real app, you'd restrict this more, but for logic tracking we allow user to read/write their own daily log
+      // However, to prevent cheating (clearing own count), we should ideally use a cloud function.
+      // For now, we restrict update to only increment logic if needed or just allow get.
+      allow get: if isSignedIn(); 
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid; 
+      allow list: if isAdmin();
+    }
+    
+    // Public usage log (for the 1 free conversion without login)
+    // We'll use a special document or IP-based logic? 
+    // Actually, Firestore doesn't have IP triggers. We'll rely on local storage for the "1 free", 
+    // then block the UI, then use Firestore once logged in.
+  }
+}

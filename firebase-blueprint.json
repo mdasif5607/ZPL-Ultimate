@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account and access details",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "accessExpiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    },
+    "AccessRequest": {
+      "title": "Access Request",
+      "description": "Request from a user for extended access",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "requestedAt": { "type": "string", "format": "date-time" },
+        "durationDays": { "type": "integer" }
+      },
+      "required": ["userId", "userEmail", "status", "requestedAt"]
+    },
+    "UsageLog": {
+      "title": "Usage Log",
+      "description": "Tracks daily conversion counts per user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "count": { "type": "integer" }
+      },
+      "required": ["userId", "date", "count"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and permission states"
+    },
+    "accessRequests/{requestId}": {
+      "schema": "AccessRequest",
+      "description": "Requests for access status"
+    },
+    "usageLogs/{logId}": {
+      "schema": "UsageLog",
+      "description": "Daily usage tracking"
+    }
+  }
+}
