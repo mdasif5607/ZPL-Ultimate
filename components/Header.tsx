@@ -11,7 +11,7 @@ export const Header: React.FC = () => {
         </div>
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight leading-none mb-1">
-            ZPL Ultimate <span className="text-blue-500">Studio</span>
+            ZPL <span className="text-blue-500">Pro</span>
           </h1>
           <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-medium">
             Professional Batch Processor • JM International

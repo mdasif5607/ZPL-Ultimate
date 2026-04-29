@@ -1,5 +1,5 @@
 {
-  "name": "ZPL Pro Studio 2026",
+  "name": "ZPL Pro",
   "description": "A professional batch ZPL label converter and management system for high-volume label processing.",
   "requestFramePermissions": ["usb"],
   "majorCapabilities": []
