@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db, handleFirestoreError, OperationType, getAllUsers, revokeAccess, UserProfile } from '../services/firebase';
+import { db, handleFirestoreError, OperationType, getAllUsers, revokeAccess, grantAccess, updateUserLimit, setUserStatus, UserProfile } from '../services/firebase';
 import { collection, query, getDocs, doc, updateDoc, Timestamp, where } from 'firebase/firestore';
-import { Users, Clock, Check, X, Shield, Zap, AlertCircle, Ban, ArrowUpRight } from 'lucide-react';
+import { Users, Clock, Check, X, Shield, Zap, AlertCircle, Ban, ArrowUpRight, Plus, Minus, KeyRound, Save, Power, UserCheck, UserMinus } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const AdminDashboard: React.FC = () => {
@@ -10,6 +10,7 @@ export const AdminDashboard: React.FC = () => {
   const [usageLogs, setUsageLogs] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'requests' | 'users'>('requests');
+  const [editingLimit, setEditingLimit] = useState<Record<string, string>>({});
 
   const fetchData = async () => {
     try {
@@ -68,6 +69,39 @@ export const AdminDashboard: React.FC = () => {
     if (confirm("Are you sure you want to revoke access for this user?")) {
       await revokeAccess(userId);
       await fetchData();
+    }
+  };
+
+  const handleSaveLimit = async (userId: string) => {
+    try {
+      const val = parseInt(editingLimit[userId]);
+      if (isNaN(val) || val < 1) return;
+      await updateUserLimit(userId, val);
+      const newEditing = { ...editingLimit };
+      delete newEditing[userId];
+      setEditingLimit(newEditing);
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleToggleStatus = async (userId: string, currentStatus?: string) => {
+    try {
+      const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+      await setUserStatus(userId, newStatus);
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleGrant = async (userId: string, days: number) => {
+    try {
+      await grantAccess(userId, days);
+      await fetchData();
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -159,7 +193,7 @@ export const AdminDashboard: React.FC = () => {
                   <tr className="bg-white/[0.02] border-b border-white/[0.05]">
                     <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">User Identity</th>
                     <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Access Token</th>
-                    <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Daily Usage</th>
+                    <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Daily Control</th>
                     <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Actions</th>
                   </tr>
                 </thead>
@@ -194,28 +228,82 @@ export const AdminDashboard: React.FC = () => {
                           )}
                         </td>
                         <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 h-1.5 bg-zinc-800 rounded-full max-w-[80px] overflow-hidden">
-                              <div 
-                                className={`h-full transition-all duration-1000 ${dailyTokenCount >= 10 ? 'bg-red-500' : 'bg-blue-500'}`}
-                                style={{ width: `${Math.min((dailyTokenCount / 10) * 100, 100)}%` }}
-                              />
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 h-1.5 bg-zinc-800 rounded-full max-w-[80px] overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all duration-1000 ${dailyTokenCount >= (user.dailyLimit || 10) ? 'bg-red-500' : 'bg-blue-500'}`}
+                                  style={{ width: `${Math.min((dailyTokenCount / (user.dailyLimit || 10)) * 100, 100)}%` }}
+                                />
+                              </div>
+                              <span className={`text-[10px] font-mono font-bold ${dailyTokenCount >= (user.dailyLimit || 10) ? 'text-red-500' : 'text-zinc-500'}`}>
+                                {dailyTokenCount}/{user.dailyLimit || 10}
+                              </span>
                             </div>
-                            <span className={`text-[10px] font-mono font-bold ${dailyTokenCount >= 10 ? 'text-red-500' : 'text-zinc-500'}`}>
-                              {dailyTokenCount}/10
-                            </span>
+                            
+                            {user.role !== 'admin' && (
+                              <div className="flex items-center gap-2">
+                                <input 
+                                  type="text" 
+                                  placeholder={String(user.dailyLimit || 10)}
+                                  value={editingLimit[user.uid] ?? ''}
+                                  onChange={(e) => setEditingLimit({ ...editingLimit, [user.uid]: e.target.value })}
+                                  className="w-12 h-6 bg-zinc-950 border border-zinc-800 rounded px-1.5 text-[10px] text-white focus:outline-none focus:border-blue-500 font-bold"
+                                />
+                                {editingLimit[user.uid] !== undefined && (
+                                  <button 
+                                    onClick={() => handleSaveLimit(user.uid)}
+                                    className="p-1 bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white rounded transition-all"
+                                    title="Save Limit"
+                                  >
+                                    <Save className="w-3 h-3" />
+                                  </button>
+                                )}
+                                <span className="text-[8px] font-black text-zinc-600 uppercase tracking-tighter">Enter Limit</span>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="p-4">
-                          {user.role !== 'admin' && hasActiveAccess && (
-                            <button 
-                              onClick={() => handleRevoke(user.uid)}
-                              className="p-2 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                              title="Revoke Access"
-                            >
-                              <Ban className="w-4 h-4" />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {user.role !== 'admin' && (
+                              <>
+                                <button 
+                                  onClick={() => handleToggleStatus(user.uid, user.status)}
+                                  className={`p-2 rounded-xl transition-all ${
+                                    user.status === 'suspended' 
+                                      ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' 
+                                      : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                                  }`}
+                                  title={user.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
+                                >
+                                  {user.status === 'suspended' ? <UserMinus className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                </button>
+
+                                {hasActiveAccess ? (
+                                  <button 
+                                    onClick={() => handleRevoke(user.uid)}
+                                    className="p-2 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                    title="Revoke Pro Access"
+                                  >
+                                    <Ban className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    {[1, 7, 30].map(days => (
+                                      <button 
+                                        key={days}
+                                        onClick={() => handleGrant(user.uid, days)}
+                                        className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[8px] font-black hover:bg-emerald-500 hover:text-white transition-all"
+                                      >
+                                        +{days}D
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

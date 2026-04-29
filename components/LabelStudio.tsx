@@ -7,7 +7,7 @@ import { Header } from './Header';
 import { Uploader } from './Uploader';
 import { ProcessMode, LogEntry, ProcessingState, HistoryItem, AppSettings } from '../types';
 import { processZplToPdf, printRawZplToUsb, detectLabelSize } from '../services/zplService';
-import { FileText, Download, Printer, Play, Info, CheckCircle2, User as UserIcon, LogOut, ShieldAlert, Key, Zap, Shield } from 'lucide-react';
+import { FileText, Download, Printer, Play, Info, CheckCircle2, User as UserIcon, LogOut, ShieldAlert, Key, Zap, Shield, Loader2, UserMinus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
@@ -16,7 +16,7 @@ import { logout, requestAccess, getDailyUsage, incrementDailyUsage } from '../se
 import { SystemDiagnostics } from './SystemDiagnostics';
 
 export const LabelStudio: React.FC = () => {
-  const { user, profile, loading: authLoading, isAdmin, hasAccess, error: authError } = useAuth();
+  const { user, profile, loading: authLoading, isAdmin, hasAccess, isSuspended, error: authError } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [hasRequestedAccess, setHasRequestedAccess] = useState(false);
@@ -79,6 +79,33 @@ export const LabelStudio: React.FC = () => {
       type
     }].slice(-50));
   }, []);
+
+  if (authLoading) return <div className="h-screen w-full bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>;
+
+  if (isSuspended) {
+    return (
+      <div className="h-screen w-full bg-[#0a0a0a] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-600/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="relative z-10 font-sans">
+          <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-amber-500/10 animate-pulse">
+            <UserMinus className="w-10 h-10 text-amber-500" />
+          </div>
+          <h1 className="text-3xl font-black text-white mb-4 uppercase tracking-[0.2em]">Access Suspended</h1>
+          <p className="text-zinc-500 max-w-sm mx-auto mb-10 leading-relaxed font-bold uppercase text-[10px] tracking-widest">
+            Your high-clearance access has been <span className="text-amber-500">temporarily restricted</span> by JM INTERNATIONAL administrative protocols.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button onClick={logout} className="w-full sm:w-auto px-8 py-4 bg-white text-black text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-zinc-200 transition-all shadow-xl">
+              Logout System
+            </button>
+            <a href="mailto:rakib560753@gmail.com" className="w-full sm:w-auto px-8 py-4 bg-zinc-900 text-zinc-400 text-xs font-black uppercase tracking-widest rounded-2xl border border-zinc-800 hover:text-white hover:bg-zinc-800 transition-all">
+              Contact Admin
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -146,8 +173,9 @@ export const LabelStudio: React.FC = () => {
       }
       
       const currentUsage = await getDailyUsage(user.uid);
-      if (currentUsage >= 10 && !isAdmin) {
-        addLog("Daily Protocol Limit Reached (10/10 tokens). Contact admin for quota increase.", "error");
+      const limit = profile?.dailyLimit || 10;
+      if (currentUsage >= limit && !isAdmin) {
+        addLog(`Daily Protocol Limit Reached (${currentUsage}/${limit} tokens). Contact admin for quota increase.`, "error");
         return;
       }
     }
@@ -329,7 +357,7 @@ export const LabelStudio: React.FC = () => {
                             </span>
                             {hasAccess && (
                               <span className="text-[10px] text-zinc-500 font-mono flex items-center gap-1">
-                                <Zap className="w-3 h-3 text-blue-500" /> {dailyCount}/10 Tokens Used
+                                <Zap className="w-3 h-3 text-blue-500" /> {dailyCount}/{profile?.dailyLimit || 10} Tokens Used
                               </span>
                             )}
                             {isAdmin && (
@@ -381,7 +409,7 @@ export const LabelStudio: React.FC = () => {
                     <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
-                        Access requires authorization from JM INTERNATIONAL. Once granted, you'll receive 10 daily conversion tokens.
+                        Access requires authorization from JM INTERNATIONAL. Once granted, you'll receive {profile?.dailyLimit || 10} daily conversion tokens.
                       </p>
                     </div>
                   </div>

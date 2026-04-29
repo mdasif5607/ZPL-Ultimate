@@ -110,9 +110,19 @@ export interface UserProfile {
   uid: string;
   email: string;
   role: 'user' | 'admin';
+  status?: 'active' | 'suspended';
   accessExpiresAt?: Timestamp;
+  dailyLimit?: number;
   createdAt: Timestamp;
 }
+
+export const setUserStatus = async (uid: string, status: 'active' | 'suspended') => {
+  try {
+    await updateDoc(doc(db, 'users', uid), { status });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+  }
+};
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
   try {
@@ -180,6 +190,28 @@ export const revokeAccess = async (uid: string) => {
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, {
       accessExpiresAt: null
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+  }
+};
+
+export const grantAccess = async (uid: string, days: number) => {
+  try {
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + days);
+    await updateDoc(doc(db, 'users', uid), {
+      accessExpiresAt: Timestamp.fromDate(expiry)
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+  }
+};
+
+export const updateUserLimit = async (uid: string, limit: number) => {
+  try {
+    await updateDoc(doc(db, 'users', uid), {
+      dailyLimit: Math.max(1, limit)
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);

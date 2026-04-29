@@ -8,6 +8,7 @@ export interface AuthState {
   loading: boolean;
   isAdmin: boolean;
   hasAccess: boolean;
+  isSuspended: boolean;
   error?: string | null;
 }
 
@@ -18,6 +19,7 @@ export const useAuth = () => {
     loading: true,
     isAdmin: false,
     hasAccess: false,
+    isSuspended: false,
     error: null
   });
 
@@ -33,7 +35,8 @@ export const useAuth = () => {
 
           const now = new Date();
           const accessExpiry = profile?.accessExpiresAt?.toDate();
-          const hasAccess = profile?.role === 'admin' || (accessExpiry && accessExpiry > now);
+          const isSuspended = profile?.status === 'suspended';
+          const hasAccess = !isSuspended && (profile?.role === 'admin' || (accessExpiry && accessExpiry > now));
           const isAdmin = profile?.role === 'admin' || user.email === 'jashimmirza@gmail.com' || user.email === 'rakib560753@gmail.com';
 
           setState({
@@ -42,6 +45,7 @@ export const useAuth = () => {
             loading: false,
             isAdmin: !!isAdmin,
             hasAccess: !!hasAccess,
+            isSuspended,
             error: null
           });
         } catch (error: any) {
@@ -58,6 +62,7 @@ export const useAuth = () => {
             loading: false,
             isAdmin: user.email === 'jashimmirza@gmail.com' || user.email === 'rakib560753@gmail.com',
             hasAccess: false,
+            isSuspended: false,
             error: "Failed to load profile: " + message
           });
         }
@@ -68,6 +73,7 @@ export const useAuth = () => {
           loading: false,
           isAdmin: false,
           hasAccess: false,
+          isSuspended: false,
           error: null
         });
       }
