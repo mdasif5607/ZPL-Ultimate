@@ -135,6 +135,28 @@ export const requestAccess = async (user: User) => {
   }
 };
 
+export const getAllUsers = async (): Promise<UserProfile[]> => {
+  try {
+    const q = query(collection(db, 'users'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[];
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, 'users');
+    return [];
+  }
+};
+
+export const revokeAccess = async (uid: string) => {
+  try {
+    const docRef = doc(db, 'users', uid);
+    await updateDoc(docRef, {
+      accessExpiresAt: null
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+  }
+};
+
 // Usage Tracking
 export const getDailyUsage = async (userId: string): Promise<number> => {
   const date = new Date().toISOString().split('T')[0];
