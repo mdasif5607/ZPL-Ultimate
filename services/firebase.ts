@@ -5,7 +5,9 @@ import {
   GoogleAuthProvider, 
   onAuthStateChanged,
   User,
-  signOut
+  signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -67,6 +69,26 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    console.error('Login Error', error);
+    throw error;
+  }
+};
+
+export const signUpWithEmail = async (email: string, pass: string) => {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, pass);
+    return result.user;
+  } catch (error) {
+    console.error('Sign Up Error', error);
+    throw error;
+  }
+};
+
+export const loginWithEmail = async (email: string, pass: string) => {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, pass);
     return result.user;
   } catch (error) {
     console.error('Login Error', error);

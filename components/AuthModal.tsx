@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { loginWithGoogle, auth } from '../services/firebase';
-import { Lock, LogIn, X } from 'lucide-react';
+import { loginWithGoogle, auth, loginWithEmail, signUpWithEmail } from '../services/firebase';
+import { Lock, LogIn, X, Mail, Key } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -10,7 +10,33 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, message }) => {
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [loading, setLoading] = useState(false);
   const user = auth.currentUser;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    
+    setError(null);
+    setLoading(true);
+    try {
+      if (mode === 'login') {
+        await loginWithEmail(email, password);
+      } else {
+        await signUpWithEmail(email, password);
+      }
+      onClose();
+    } catch (e: any) {
+      setError(e.message || "An error occurred. Please check your credentials.");
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -39,41 +65,105 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, message }
             {/* Background Glow */}
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-600/10 rounded-full blur-[60px] pointer-events-none" />
             
-            <div className="flex flex-col items-center text-center relative z-10">
+            <div className="flex flex-col items-center relative z-10">
               <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-6">
                 <Lock className="w-8 h-8 text-blue-500" />
               </div>
               
-              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Access Restricted</h2>
-              <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
-                {message || "Authentication is required to unlock full batch processing capabilities and extended quotas."}
+              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight text-center">Access Restricted</h2>
+              <p className="text-zinc-400 text-sm mb-6 leading-relaxed text-center">
+                {message || "Authentication is required to unlock full batch processing capabilities."}
               </p>
+
+              {error && (
+                <div className="w-full mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-500 font-bold uppercase tracking-widest leading-relaxed">
+                  {error}
+                </div>
+              )}
               
               {!user ? (
-                <button 
-                  onClick={async () => {
-                    try {
-                      await loginWithGoogle();
-                      onClose();
-                    } catch (e) {
-                      console.error(e);
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-4 rounded-xl hover:bg-zinc-200 transition-colors"
-                >
-                  <LogIn className="w-5 h-5" />
-                  Sign in with Google
-                </button>
+                <div className="w-full space-y-6">
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <input 
+                        type="email"
+                        placeholder="Email Address"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-zinc-800 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <input 
+                        type="password"
+                        placeholder="Password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-zinc-800 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+                      />
+                    </div>
+                    <button 
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-wait uppercase tracking-widest text-xs"
+                    >
+                      {loading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+                    </button>
+                  </form>
+
+                  <div className="relative flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/5"></div>
+                    </div>
+                    <span className="relative z-10 px-4 bg-zinc-900 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">OR</span>
+                  </div>
+
+                  <button 
+                    onClick={async () => {
+                      setError(null);
+                      try {
+                        await loginWithGoogle();
+                        onClose();
+                      } catch (e: any) {
+                        if (e.code === 'auth/popup-closed-by-user') {
+                          setError("Login popup was closed before completion.");
+                        } else if (e.code === 'auth/unauthorized-domain') {
+                          setError("Domain not authorized. Please add this domain in Firebase Console.");
+                        } else {
+                          setError(e.message || "An error occurred during login.");
+                        }
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3 rounded-xl hover:bg-zinc-200 transition-colors uppercase tracking-widest text-xs"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    Continue with Google
+                  </button>
+
+                  <p className="text-center text-xs text-zinc-500">
+                    {mode === 'login' ? "Don't have an account?" : "Already have an account?"}{' '}
+                    <button 
+                      onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                      className="text-blue-500 font-bold hover:underline"
+                    >
+                      {mode === 'login' ? 'Sign Up' : 'Log In'}
+                    </button>
+                  </p>
+                </div>
               ) : (
                 <button 
                   onClick={onClose}
-                  className="w-full flex items-center justify-center gap-3 bg-zinc-800 text-white font-bold py-4 rounded-xl hover:bg-zinc-700 transition-colors"
+                  className="w-full flex items-center justify-center gap-3 bg-zinc-800 text-white font-bold py-4 rounded-xl hover:bg-zinc-700 transition-colors uppercase tracking-widest text-xs"
                 >
                   Acknowledge
                 </button>
               )}
               
-              <p className="mt-6 text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+              <p className="mt-8 text-[10px] text-zinc-600 uppercase tracking-[0.2em] font-black">
                 Daily Public Quota: 1 File Conversion
               </p>
             </div>
