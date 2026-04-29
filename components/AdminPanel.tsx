@@ -1,18 +1,31 @@
 
 import React from 'react';
 import { AdminDashboard } from './AdminDashboard';
-import { Shield, ArrowLeft, LogOut } from 'lucide-react';
+import { Shield, ArrowLeft, LogOut, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { logout } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
 
 export const AdminPanel: React.FC = () => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading, error: authError } = useAuth();
 
   if (loading) {
     return (
       <div className="h-screen w-full bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-blue-500 font-mono text-sm animate-pulse">AUTHORIZING SECURE ACCESS...</div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="h-screen w-full bg-[#0a0a0a] flex flex-col items-center justify-center p-8 text-center">
+        <ShieldAlert className="w-16 h-16 text-red-500 mb-6" />
+        <h1 className="text-2xl font-bold text-white mb-2">SYSTEM OFFLINE</h1>
+        <p className="text-red-400 max-w-lg mb-8 whitespace-pre-wrap">{authError}</p>
+        <Link to="/" className="px-6 py-3 bg-zinc-800 text-white rounded-xl font-bold hover:bg-zinc-700 transition-all border border-white/5">
+          Return to Base
+        </Link>
       </div>
     );
   }

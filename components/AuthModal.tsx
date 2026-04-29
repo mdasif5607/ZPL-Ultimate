@@ -133,16 +133,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, message }
                           setError("Login popup was closed before completion.");
                         } else if (e.code === 'auth/unauthorized-domain') {
                           setError(
-                            "DOMAIN UNAUTHORIZED: \n1. Go to Firebase Console (Project: gen-lang-client-0390436229)\n" +
-                            "2. Authentication > Settings > Authorized Domains\n" +
-                            "3. Add 'zplpro.vercel.app'\n" +
-                            "4. Add 'zpl-ultimate-94xw.vercel.app'\n" +
-                            "5. Wait 2-3 minutes and refresh page."
+                            "DOMAIN UNAUTHORIZED: \n" +
+                            "Please add these domains to Authorized Domains in Firebase Console (Authentication > Settings):\n" +
+                            "1. " + window.location.hostname + "\n" +
+                            "2. zplpro.vercel.app\n" +
+                            "3. ais-dev-vpbt3harx5gun6jcjphjny-767779968473.asia-southeast1.run.app\n" +
+                            "4. ais-pre-vpbt3harx5gun6jcjphjny-767779968473.asia-southeast1.run.app\n" +
+                            "Wait 2 minutes after adding."
                           );
                         } else if (e.code === 'auth/operation-not-allowed') {
-                          setError("AUTH DISABLED: Enable 'Google' and 'Email/Password' in Firebase Console > Authentication > Sign-in method.");
+                          setError("AUTH DISABLED: Enable 'Google' AND 'Email/Password' in Firebase Console > Authentication > Sign-in method.");
                         } else if (e.code === 'auth/network-request-failed') {
-                          setError("NETWORK ERROR: Please check your internet connection or disable ad-blockers that might be blocking the login popup.");
+                          setError("NETWORK ERROR: Please check your connection. If using a custom domain, ensure 'authDomain' in config matches your Firebase project.");
+                        } else if (e.message?.includes('requested action is invalid')) {
+                          setError("INVALID ACTION: This usually means Google Login is NOT enabled in Firebase Console > Authentication > Sign-in method.");
                         } else {
                           setError(e.message || "An error occurred during login.");
                         }

@@ -15,7 +15,7 @@ import { AuthModal } from './AuthModal';
 import { logout, requestAccess, getDailyUsage, incrementDailyUsage } from '../services/firebase';
 
 export const LabelStudio: React.FC = () => {
-  const { user, profile, loading: authLoading, isAdmin, hasAccess } = useAuth();
+  const { user, profile, loading: authLoading, isAdmin, hasAccess, error: authError } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [hasRequestedAccess, setHasRequestedAccess] = useState(false);
@@ -85,15 +85,39 @@ export const LabelStudio: React.FC = () => {
   };
 
   const handleConnectUsb = async () => {
+    if (usbDevice && usbDevice.opened) {
+      addLog(`USB Protocol: Hardware link already active with ${usbDevice.productName || 'printer'}.`, 'warning');
+      return;
+    }
+
     try {
       const device = await navigator.usb.requestDevice({
-        filters: [{ vendorId: 0x0a5f }]
+        filters: [{ vendorId: 0x0a5f }] // Zebra Technologies
       });
-      await device.open();
+
+      try {
+        await device.open();
+      } catch (openErr) {
+        console.error("USB Open Error:", openErr);
+        throw new Error(`Device access denied. Please ensure the printer is not in use by another driver or application.`);
+      }
+
+      if (device.configuration === null) {
+        await device.selectConfiguration(1);
+      }
+
+      try {
+        const interfaceNumber = device.configuration?.interfaces[0].interfaceNumber || 0;
+        await device.claimInterface(interfaceNumber);
+      } catch (claimErr) {
+        console.error("USB Claim Error:", claimErr);
+        throw new Error(`Interface locked. The printer may be busy or locked by the system's native print spooler.`);
+      }
+
       setUsbDevice(device);
-      addLog(`USB Connected: ${device.productName}`, 'success');
+      addLog(`USB Link Verified: ${device.productName || 'Zebra Printer'} is now the active output terminal.`, 'success');
     } catch (error) {
-      addLog(`USB Link Failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      addLog(`USB Connection Failure: ${error instanceof Error ? error.message : String(error)}`, 'error');
     }
   };
 
@@ -269,6 +293,18 @@ export const LabelStudio: React.FC = () => {
 
           <div className="grid grid-cols-12 gap-8 flex-1">
             <div className="col-span-12 lg:col-span-7 space-y-8">
+              {authError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
+                  <div className="flex items-start gap-4">
+                    <ShieldAlert className="w-6 h-6 text-red-500 shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-bold text-red-500 uppercase">Authentication / Database Error</h3>
+                      <p className="text-xs text-red-400 mt-2 leading-relaxed whitespace-pre-wrap">{authError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <section className="bg-zinc-900/40 border border-white/[0.03] rounded-2xl p-6 overflow-hidden relative">
                 <div className="flex items-center justify-between relative z-10">
                   <div className="flex items-center gap-4">

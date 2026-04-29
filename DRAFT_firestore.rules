@@ -14,7 +14,7 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     
-    // Admin check: Prioritize the hardcoded email check
+    // Admin check: Prioritize the hardcoded email for initial setup, then fallback to DB lookup
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'jashimmirza@gmail.com' ||
@@ -30,7 +30,7 @@ service cloud.firestore {
              data.keys().size() >= 3 &&
              data.email is string && data.email.size() <= 256 &&
              data.role in ['user', 'admin'] &&
-             (data.createdAt == request.time || data.createdAt is timestamp);
+             data.createdAt == request.time;
     }
 
     function isValidAccessRequest(data) {
@@ -56,27 +56,33 @@ service cloud.firestore {
 
     // 1. Users Collection
     match /users/{userId} {
-      // Allow get if it's the user's own profile OR they are an admin
+      // Identity Protection: Only the user or an admin can read the profile
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       
-      allow list: if isAdmin(); 
+      // List Guard: Secure query enforcement
+      allow list: if isAdmin(); // Regular users shouldn't be listing profiles
 
+      // Write Security: Mandatory verification for creation
       allow create: if isVerified() && request.auth.uid == userId && isValidUser(incoming());
       
+      // Tiered Update: Regular users can't change their role
       allow update: if (isAdmin() || (
         isVerified() && 
         request.auth.uid == userId && 
         isValidUser(incoming()) &&
-        incoming().role == existing().role && 
-        incoming().createdAt == existing().createdAt
+        incoming().role == existing().role && // Immutable role for self
+        incoming().createdAt == existing().createdAt && // Immutable timestamp
+        incoming().diff(existing()).affectedKeys().hasOnly(['email', 'accessExpiresAt', 'role', 'createdAt'])
+        // Note: The above is broad for admin updates, but for self-update we might restrict further
       )) && (
-        isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['email'])
+        // Action: Self Update (limit to email if needed)
+        (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['email']))
       );
     }
 
     // 2. Access Requests
     match /accessRequests/{requestId} {
-      allow get: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid) || (resource == null));
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isVerified() && isValidAccessRequest(incoming());
       allow update: if isAdmin();
@@ -85,27 +91,23 @@ service cloud.firestore {
 
     // 3. Usage Logs
     match /usageLogs/{logId} {
-      // Critical Fix: Explicitly allow get if the log belongs to the user, safely handling non-existent docs
-      allow get: if isSignedIn() && (
-        isAdmin() || 
-        logId.startsWith(request.auth.uid) || 
-        (resource != null && resource.data.userId == request.auth.uid)
-      );
-      
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       
-      allow create: if isVerified() && isValidUsageLog(incoming()) && logId.startsWith(request.auth.uid);
+      allow create: if isVerified() && isValidUsageLog(incoming()) && (
+        // The logId naming convention enforcement
+        logId.startsWith(request.auth.uid)
+      );
       
       allow update: if (isAdmin() || (
         isVerified() && 
-        resource != null &&
         resource.data.userId == request.auth.uid &&
         isValidUsageLog(incoming()) &&
-        incoming().userId == resource.data.userId &&
-        incoming().date == resource.data.date
-      )) && (
-        isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['count'])
-      );
+        incoming().userId == existing().userId &&
+        incoming().date == existing().date &&
+        // Action: Increment Count
+        incoming().diff(existing()).affectedKeys().hasOnly(['count'])
+      ));
     }
   }
 }

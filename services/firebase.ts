@@ -27,7 +27,7 @@ import {
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app);
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
@@ -52,8 +52,14 @@ interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  let errMsg = error instanceof Error ? error.message : String(error);
+  
+  if (errMsg.includes('client is offline')) {
+    errMsg = "FIRESTORE OFFLINE: The app could not connect to the database. \n\n1. In your Firebase Console, click 'Databases & Storage' in the left sidebar.\n2. Click 'Firestore Database'.\n3. Ensure you have clicked 'Create database'.\n4. If it already exists, check your internet connection or disable ad-blockers (like Brave Shields). \n\nOriginal error: " + errMsg;
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
