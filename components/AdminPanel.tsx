@@ -5,6 +5,7 @@ import { Shield, ArrowLeft, LogOut, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { logout } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
+import { SystemDiagnostics } from './SystemDiagnostics';
 
 export const AdminPanel: React.FC = () => {
   const { user, isAdmin, loading, error: authError } = useAuth();
@@ -112,6 +113,10 @@ export const AdminPanel: React.FC = () => {
             </div>
           </section>
         </main>
+
+        <div className="mt-12">
+           <SystemDiagnostics />
+        </div>
       </div>
       
       <div className="fixed -top-24 -right-24 w-96 h-96 bg-blue-600/5 rounded-full blur-[100px] pointer-events-none" />

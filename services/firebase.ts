@@ -22,7 +22,8 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
-  increment
+  increment,
+  getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -211,5 +212,18 @@ export const incrementDailyUsage = async (userId: string) => {
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `usageLogs/${logId}`);
+  }
+};
+
+export const testFirestoreConnection = async () => {
+  try {
+    // Attempt to get a document directly from server to bypass cache
+    await getDocFromServer(doc(db, '_diagnostics', 'connection_test'));
+    return { success: true };
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      return { success: true, message: "Connected (Rules active)" };
+    }
+    return { success: false, error: error.message, code: error.code };
   }
 };

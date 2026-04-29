@@ -13,6 +13,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from './AuthModal';
 import { logout, requestAccess, getDailyUsage, incrementDailyUsage } from '../services/firebase';
+import { SystemDiagnostics } from './SystemDiagnostics';
 
 export const LabelStudio: React.FC = () => {
   const { user, profile, loading: authLoading, isAdmin, hasAccess, error: authError } = useAuth();
@@ -474,6 +475,8 @@ export const LabelStudio: React.FC = () => {
               </section>
             </div>
           </div>
+
+          <SystemDiagnostics />
 
           <footer className="mt-12 pt-8 border-t border-white/[0.05] flex items-center justify-between italic">
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-medium"> Proprietary Build for <span className="text-zinc-500">JM INTERNATIONAL</span> </p>
