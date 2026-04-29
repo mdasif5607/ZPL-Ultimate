@@ -58,10 +58,11 @@ export const SystemDiagnostics: React.FC = () => {
     if (isLocal || isRunApp) {
       settingsStatus.status = 'success';
       settingsStatus.message = 'Standard environment detected';
+      settingsStatus.details = 'This domain is usually pre-authorized.';
     } else {
       settingsStatus.status = 'error';
-      settingsStatus.message = 'Custom domain detected';
-      settingsStatus.details = `Ensure '${hostname}' is added to your Firebase Authorized Domains list.`;
+      settingsStatus.message = 'External domain: ' + hostname;
+      settingsStatus.details = `CRITICAL: You MUST add '${hostname}' to "Authorized Domains" in Firebase Console > Authentication > Settings. Without this, Google Login and Firestore may fail.`;
     }
 
     setResults([...results]);
@@ -72,15 +73,15 @@ export const SystemDiagnostics: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
       <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/40">
         <div className="flex items-center gap-3">
           <Shield className="w-5 h-5 text-indigo-500" />
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">System Diagnostics</h2>
+          <h2 className="text-sm font-bold text-white uppercase tracking-wider">System Diagnostics & Setup</h2>
         </div>
         <button 
           onClick={runDiagnostics}
-          className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors"
+          className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors px-3 py-1 bg-zinc-800/50 rounded-lg"
         >
           Re-Run Tests
         </button>
@@ -88,19 +89,27 @@ export const SystemDiagnostics: React.FC = () => {
 
       <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         {results.map((res, i) => (
-          <div key={i} className="flex gap-4 p-4 rounded-xl bg-zinc-950/40 border border-white/[0.02]">
-            <div className={`p-2 rounded-lg shrink-0 ${
+          <div key={i} className={`flex gap-4 p-4 rounded-xl border transition-all duration-300 ${
+            res.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/20' : 
+            res.status === 'error' ? 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 
+            'bg-zinc-900/40 border-zinc-800'
+          }`}>
+            <div className={`p-2.5 rounded-lg shrink-0 ${
               res.status === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 
               res.status === 'error' ? 'bg-red-500/10 text-red-500' : 
               'bg-zinc-500/10 text-zinc-500'
             }`}>
               <res.icon className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="text-xs font-bold text-zinc-400 uppercase mb-1">{res.title}</h3>
+            <div className="min-w-0 flex-1">
+              <h3 className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
+                res.status === 'success' ? 'text-emerald-500/70' : 
+                res.status === 'error' ? 'text-red-500/70' : 
+                'text-zinc-500'
+              }`}>{res.title}</h3>
               <div className="flex items-center gap-2">
                 {res.status === 'loading' && <Loader2 className="w-3 h-3 animate-spin text-zinc-600" />}
-                <p className={`text-sm font-medium truncate ${
+                <p className={`text-sm font-bold truncate ${
                   res.status === 'success' ? 'text-zinc-100' : 
                   res.status === 'error' ? 'text-red-400' : 
                   'text-zinc-500'
@@ -109,7 +118,9 @@ export const SystemDiagnostics: React.FC = () => {
                 </p>
               </div>
               {res.details && (
-                <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed">
+                <p className={`text-[10px] mt-2 leading-relaxed ${
+                  res.status === 'error' ? 'text-red-400/80 font-medium' : 'text-zinc-500'
+                }`}>
                   {res.details}
                 </p>
               )}
@@ -118,8 +129,22 @@ export const SystemDiagnostics: React.FC = () => {
         ))}
       </div>
 
-      <div className="px-6 py-4 bg-zinc-900/20 border-t border-zinc-800 text-[10px] text-zinc-500">
-        <p>If Firestore shows "OFFLINE", check if the database was created in the Firebase console for project 'zpl-pro'.</p>
+      <div className="px-6 py-4 bg-zinc-900/40 border-t border-zinc-800">
+        <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Live Support Checklist</h4>
+        <ul className="space-y-1.5">
+          <li className="flex items-center gap-2 text-[10px] text-zinc-500">
+            <CheckCircle className="w-3 h-3 text-emerald-500/50" />
+            <span>Go to <b>Auth Settings</b> and whitelist <b>zplpro.vercel.app</b></span>
+          </li>
+          <li className="flex items-center gap-2 text-[10px] text-zinc-500">
+            <CheckCircle className="w-3 h-3 text-emerald-500/50" />
+            <span>Enable <b>Email/Password</b> & <b>Google Sign-In</b> in your project console.</span>
+          </li>
+          <li className="flex items-center gap-2 text-[10px] text-zinc-500">
+            <CheckCircle className="w-3 h-3 text-emerald-500/50" />
+            <span>Disable ad-blockers for this domain.</span>
+          </li>
+        </ul>
       </div>
     </div>
   );

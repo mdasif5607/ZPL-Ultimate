@@ -34,7 +34,7 @@ export const useAuth = () => {
           const now = new Date();
           const accessExpiry = profile?.accessExpiresAt?.toDate();
           const hasAccess = profile?.role === 'admin' || (accessExpiry && accessExpiry > now);
-          const isAdmin = profile?.role === 'admin' || user.email === 'jashimmirza@gmail.com';
+          const isAdmin = profile?.role === 'admin' || user.email === 'jashimmirza@gmail.com' || user.email === 'rakib560753@gmail.com';
 
           setState({
             user,
@@ -56,7 +56,7 @@ export const useAuth = () => {
             user,
             profile: null,
             loading: false,
-            isAdmin: user.email === 'jashimmirza@gmail.com',
+            isAdmin: user.email === 'jashimmirza@gmail.com' || user.email === 'rakib560753@gmail.com',
             hasAccess: false,
             error: "Failed to load profile: " + message
           });
