@@ -7,9 +7,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   message?: string;
+  title?: string;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, message }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, message, title }) => {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,7 +71,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, message }
                 <Lock className="w-8 h-8 text-blue-500" />
               </div>
               
-              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight text-center">Access Restricted</h2>
+              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight text-center">
+                {title || "Access Restricted"}
+              </h2>
               <p className="text-zinc-400 text-sm mb-6 leading-relaxed text-center">
                 {message || "Authentication is required to unlock full batch processing capabilities."}
               </p>

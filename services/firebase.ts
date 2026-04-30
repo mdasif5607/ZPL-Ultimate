@@ -231,16 +231,16 @@ export const getDailyUsage = async (userId: string): Promise<number> => {
   }
 };
 
-export const incrementDailyUsage = async (userId: string) => {
+export const incrementDailyUsage = async (userId: string, count: number = 1) => {
   const date = new Date().toISOString().split('T')[0];
   const logId = `${userId}_${date}`;
   try {
     const docRef = doc(db, 'usageLogs', logId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-      await setDoc(docRef, { userId, date, count: 1 });
+      await setDoc(docRef, { userId, date, count: count });
     } else {
-      await updateDoc(docRef, { count: increment(1) });
+      await updateDoc(docRef, { count: increment(count) });
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `usageLogs/${logId}`);

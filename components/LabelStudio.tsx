@@ -12,13 +12,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from './AuthModal';
-import { logout, requestAccess, getDailyUsage, incrementDailyUsage } from '../services/firebase';
+import { logout, requestAccess, getDailyUsage, incrementDailyUsage, getUserProfile } from '../services/firebase';
 import { SystemDiagnostics } from './SystemDiagnostics';
 
 export const LabelStudio: React.FC = () => {
   const { user, profile, loading: authLoading, isAdmin, hasAccess, isSuspended, error: authError } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
+  const [authModalTitle, setAuthModalTitle] = useState('');
   const [hasRequestedAccess, setHasRequestedAccess] = useState(false);
   const [dailyCount, setDailyCount] = useState(0);
 
@@ -158,31 +159,6 @@ export const LabelStudio: React.FC = () => {
   const runTask = async (mode: ProcessMode) => {
     if (!file) return;
 
-    if (!user) {
-      const freeUsed = localStorage.getItem('zpl_free_used') === 'true';
-      if (freeUsed) {
-        setAuthMessage("Public quota exhausted. Please sign in to continue converting labels.");
-        setShowAuthModal(true);
-        return;
-      }
-    } else {
-      if (!hasAccess) {
-        setAuthMessage("Security Alert: Active subscription or authorization required for batch operations. Please request access from the dashboard.");
-        setShowAuthModal(true);
-        return;
-      }
-      
-      const currentUsage = await getDailyUsage(user.uid);
-      const limit = profile?.dailyLimit || 10;
-      if (currentUsage >= limit && !isAdmin) {
-        addLog(`Daily Protocol Limit Reached (${currentUsage}/${limit} tokens). Contact admin for quota increase.`, "error");
-        return;
-      }
-    }
-
-    setProcessing(prev => ({ ...prev, isProcessing: true, progress: 0, speed: 0, mode }));
-    addLog(`Initializing ${mode.toUpperCase()} batch pipeline...`, 'info');
-
     try {
       let text = await file.text();
       text = text.replace(/^\ufeff/, '');
@@ -196,6 +172,48 @@ export const LabelStudio: React.FC = () => {
 
       const total = labels.length;
       if (total === 0) throw new Error("No valid ZPL instructions found in file (^XA tag missing).");
+
+      if (user) {
+        if (!hasAccess) {
+          setAuthModalTitle("Access Required");
+          setAuthMessage("Security Alert: Active subscription or authorization required for batch operations. Please request access from the dashboard.");
+          setShowAuthModal(true);
+          return;
+        }
+        
+        const [currentUsage, latestProfile] = await Promise.all([
+          getDailyUsage(user.uid),
+          getUserProfile(user.uid)
+        ]);
+        
+        const limit = latestProfile?.dailyLimit || 10;
+        if (currentUsage >= limit) {
+          setAuthModalTitle("Quota Exhausted");
+          setAuthMessage(`Protocol Limit Reached (${currentUsage}/${limit} tokens). Please wait 24 hours for limit reset or contact admin to increase your quota.`);
+          setShowAuthModal(true);
+          addLog(`Access Denied: Daily Protocol Limit Reached (${currentUsage}/${limit} tokens).`, "error");
+          return;
+        }
+
+        if (currentUsage + total > limit) {
+          setAuthModalTitle("Batch Size Alert");
+          setAuthMessage(`The selected file contains ${total} labels, which exceeds your remaining daily quota (${limit - currentUsage} tokens). Please reduce labels or contact admin.`);
+          setShowAuthModal(true);
+          addLog(`Protocol Aborted: Batch size (${total}) exceeds your remaining quota (${limit - currentUsage}).`, "error");
+          return;
+        }
+      } else {
+        const freeUsed = localStorage.getItem('zpl_free_used') === 'true';
+        if (freeUsed) {
+          setAuthModalTitle("Public Quota Exhausted");
+          setAuthMessage("Public quota exhausted. Please sign in to continue converting labels.");
+          setShowAuthModal(true);
+          return;
+        }
+      }
+
+      setProcessing(prev => ({ ...prev, isProcessing: true, progress: 0, speed: 0, mode }));
+      addLog(`Initializing ${mode.toUpperCase()} batch pipeline...`, 'info');
 
       let activeLabelSize = settings.labelSize;
       if (activeLabelSize.toLowerCase() === 'auto') {
@@ -217,6 +235,13 @@ export const LabelStudio: React.FC = () => {
           setProcessing(prev => ({ ...prev, current, progress: (current / total) * 100 }));
           addLog(`USB Streamed: ${current}/${total} labels`, 'info');
         }
+
+        if (user) {
+          await incrementDailyUsage(user.uid, total);
+          const newUsage = await getDailyUsage(user.uid);
+          setDailyCount(newUsage);
+        }
+
         addLog("Hardware transmission complete. Check printer status.", 'success');
       } else {
         const startTime = Date.now();
@@ -257,7 +282,7 @@ export const LabelStudio: React.FC = () => {
             localStorage.setItem('zpl_free_used', 'true');
             addLog("Public conversion credit consumed. Login required for next batch.", 'warning');
           } else {
-            await incrementDailyUsage(user.uid);
+            await incrementDailyUsage(user.uid, total);
             const newUsage = await getDailyUsage(user.uid);
             setDailyCount(newUsage);
           }
@@ -513,7 +538,12 @@ export const LabelStudio: React.FC = () => {
         </div>
       </main>
 
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} message={authMessage} />
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        message={authMessage}
+        title={authModalTitle}
+      />
       <div className="fixed -top-24 -right-24 w-96 h-96 bg-blue-600/5 rounded-full blur-[100px] pointer-events-none" />
       <div className="fixed -bottom-24 -left-24 w-96 h-96 bg-emerald-600/5 rounded-full blur-[100px] pointer-events-none" />
     </div>
