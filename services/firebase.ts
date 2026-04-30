@@ -23,7 +23,8 @@ import {
   serverTimestamp,
   Timestamp,
   increment,
-  getDocFromServer
+  getDocFromServer,
+  enableIndexedDbPersistence
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -31,6 +32,17 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+
+// Enable Persistence
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+      console.warn("Firestore Persistence: Multiple tabs open, persistence enabled in only one tab.");
+    } else if (err.code == 'unimplemented') {
+      console.warn("Firestore Persistence: Browser does not support persistence.");
+    }
+  });
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -56,7 +68,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   let errMsg = error instanceof Error ? error.message : String(error);
   
   if (errMsg.includes('client is offline') || errMsg.includes('unavailable')) {
-    errMsg = "FIRESTORE CONNECTION ERROR: The app could not reach the backend. \n\n1. Check if 'Firestore Database' is created in Firebase Console.\n2. Ensure 'zplpro.vercel.app' (if using it) is added to Authorized Domains in Firebase Console > Authentication > Settings.\n3. Disable Ad-blockers or Brave Shields.\n4. Check your internet connection.\n\nOriginal error: " + errMsg;
+    errMsg = "FIRESTORE CONNECTION ERROR: backend unreachable.\n\n" +
+             "POSSIBLE CAUSES:\n" +
+             "1. Authorized Domains: Add 'ais-dev-vpbt3harx5gun6jcjphjny-767779968473.asia-southeast1.run.app' to Firebase Console > Auth > Settings > Authorized Domains.\n" +
+             "2. Private Database: Check if your IP is blocked by Firebase Firewall.\n" +
+             "3. Local Network: Check if 'firestore.googleapis.com' is blocked by your ISP or a VPN.\n" +
+             "4. Browser Extensions: Disable Ad-blockers or Privacy shields.\n\n" +
+             "Original error: " + errMsg;
   }
 
   const errInfo: FirestoreErrorInfo = {
@@ -259,3 +277,10 @@ export const testFirestoreConnection = async () => {
     return { success: false, error: error.message, code: error.code };
   }
 };
+
+// Test connection on startup
+testFirestoreConnection().then(result => {
+  if (!result.success && result.code !== 'permission-denied') {
+    console.warn("Firestore Connectivity Warning:", result.error);
+  }
+});

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { LabelStudio } from './components/LabelStudio';
 import { AdminPanel } from './components/AdminPanel';
 import { useAuth } from './hooks/useAuth';
+import { Analytics } from '@vercel/analytics/react';
 
 const App: React.FC = () => {
   const { loading } = useAuth();
@@ -16,13 +17,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LabelStudio />} />
-        <Route path="/admin" element={<AdminPanel />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LabelStudio />} />
+          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+      <Analytics />
+    </>
   );
 };
 
